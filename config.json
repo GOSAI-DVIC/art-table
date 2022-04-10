@@ -1,7 +1,12 @@
 {
+    "name": "Art Table",
     "camera": {
         "type": "standard",
         "width": 640,
         "height": 480
+    },
+    "applications": {
+        "startup": ["show_hands"],
+        "disabled": ["menu"]
     }
 }
