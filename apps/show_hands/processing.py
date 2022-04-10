@@ -5,7 +5,8 @@ class Application(BaseApplication):
 
     def __init__(self, name, hal, server, manager):
         super().__init__(name, hal, server, manager)
-        self.requires = {"hand_pose": ["raw_data"],"hand_sign": ["sign"]}
+        self.requires["hand_pose"] = ["raw_data"]
+        self.requires["hand_sign"] = ["sign"]
         self.hand_pose_data = None
 
     def listener(self, source, event, data):
