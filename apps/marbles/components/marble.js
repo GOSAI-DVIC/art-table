@@ -58,9 +58,7 @@ export function move_marble_from_hand(marble, hand, sketch) {
             let dy = y - closest_point.y;
             x = closest_point.x + 2*r * dx / dist;
             y = closest_point.y + 2*r * dy / dist;
-            sketch.stroke(255, 0, 0);
-            sketch.strokeWeight(2);
-            sketch.line(x, y, closest_point.x, closest_point.y);
+            // sketch.line(x, y, closest_point.x, closest_point.y);
         }
     })
 
@@ -100,9 +98,7 @@ export function move_marble_from_marbles(marbles, marble, idx, sketch) {
                 y = mid_y + 1.1 * r * Math.sin(angle);
                 marbles[i][0] = mid_x - 1.1 * marbles[0].r * Math.cos(angle);
                 marbles[i][1] = mid_y - 1.1 * marbles[0].r * Math.sin(angle);
-                sketch.stroke(255, 255, 0);
-                sketch.strokeWeight(2);
-                sketch.line(x, y, marbles[i].x, marbles[i].y);
+                // sketch.line(x, y, marbles[i].x, marbles[i].y);
             }
         }
     }

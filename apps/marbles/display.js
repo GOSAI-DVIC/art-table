@@ -21,11 +21,16 @@ export const marbles = new p5((sketch) => {
 
         socket.on(sketch.name, (data) => {
             if (data == undefined || data.length == 0) return;
+            hands_position = [];
 
-            hands_position = data["hands_landmarks"];
+            // hands_position = data["hands_landmarks"];
+
+            if (data["hands_landmarks"] != undefined && data["hands_landmarks"].length != 0) hands_position.concat(data["right_hand_pose"]);
+            if (data["right_hand_pose"] != undefined && data["right_hand_pose"].length != 0) hands_position.push(data["right_hand_pose"]);
+            if (data["left_hand_pose"] != undefined && data["left_hand_pose"].length != 0) hands_position.push(data["left_hand_pose"]);
         });
 
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 1000; i++) {
             marbles.push({
                 x: Math.random() * sketch.width,
                 y: Math.random() * sketch.height,
@@ -48,23 +53,23 @@ export const marbles = new p5((sketch) => {
         sketch.resizeCanvas(windowWidth, windowHeight);
     };
 
-    sketch.update = () => {
-    };
+    sketch.update = () => {};
 
     sketch.show = () => {
         sketch.clear();
         show_marbles(marbles, sketch);
-        for(let i = 0; i < marbles.length; i++) {
+        sketch.strokeWeight(2);
+        sketch.stroke(255, 255, 0);
+        for (let i = 0; i < marbles.length; i++) {
             marbles[i] = move_marble_from_marbles(marbles, marbles[i], i, sketch);
         }
-        if (hands_position.length > 0) {
-            hands_position.forEach((hand) => {
-                for(let i = 0; i < marbles.length; i++) {
-                    marbles[i] = move_marble_from_hand(marbles[i], hand, sketch);
-                }
-            });
+        sketch.stroke(255, 0, 0);
+        for (let hand of hands_position) {
+            for (let i = 0; i < marbles.length; i++) {
+                marbles[i] = move_marble_from_hand(marbles[i], hand, sketch);
+            }
         }
-        for(let i = 0; i < marbles.length; i++) {
+        for (let i = 0; i < marbles.length; i++) {
             marbles[i] = move_marble_from_walls(marbles[i], sketch);
         }
     };
