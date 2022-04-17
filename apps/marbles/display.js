@@ -22,15 +22,15 @@ export const marbles = new p5((sketch) => {
         socket.on(sketch.name, (data) => {
             if (data == undefined || data.length == 0) return;
             hands_position = [];
+            console.log(data);
 
-            // hands_position = data["hands_landmarks"];
-
-            if (data["hands_landmarks"] != undefined && data["hands_landmarks"].length != 0) hands_position.concat(data["right_hand_pose"]);
+            if (data["hands_landmarks"] != undefined && data["hands_landmarks"].length != 0) hands_position = hands_position.concat(data["hands_landmarks"]);
             if (data["right_hand_pose"] != undefined && data["right_hand_pose"].length != 0) hands_position.push(data["right_hand_pose"]);
             if (data["left_hand_pose"] != undefined && data["left_hand_pose"].length != 0) hands_position.push(data["left_hand_pose"]);
+            // console.log(data["hands_landmarks"].length)
         });
 
-        for (let i = 0; i < 1000; i++) {
+        for (let i = 0; i < 150; i++) {
             marbles.push({
                 x: Math.random() * sketch.width,
                 y: Math.random() * sketch.height,
