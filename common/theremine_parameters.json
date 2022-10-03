@@ -1,0 +1,10 @@
+{
+    "frequency_min": ["C3", 130.81],
+    "frequency_max": ["C7", 2093.0],
+    "frequency_start": 0.4,
+    "frequency_end": 0.95,
+    "amplitude_min": 0,
+    "amplitude_max": 1,
+    "amplitude_start": 0.7,
+    "amplitude_end": 0.95
+}
