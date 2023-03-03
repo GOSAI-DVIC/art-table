@@ -3,7 +3,8 @@
     "camera": {
         "type": "standard",
         "width": 640,
-        "height": 480
+        "height": 480,
+        "flip": true
     },
     "applications": {
         "startup": ["show_hands"],
