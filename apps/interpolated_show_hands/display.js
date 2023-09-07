@@ -13,16 +13,19 @@ export const interpolated_show_hands = new p5((sketch) => {
 
     sketch.set = (width, height, socket) => {
         sketch.selfCanvas = sketch
-            .createCanvas(width, height)
-            .position(0, 0)
-            .style("z-index", sketch.z_index);
+        .createCanvas(width, height)
+        .position(0, 0)
+        .style("z-index", sketch.z_index);
 
+        // ezfzef;
         socket.on(sketch.name, (data) => {
             // console.log(data);
             if (data == undefined || data.length == 0) return;
             hands_position = data["hands_landmarks"];
             hands_handedness = data["hands_handedness"];
             hands_sign = data["hands_sign"];
+            let delta_time = performance.timeOrigin + performance.now() - 1000* data["emit_time"];
+            console.log(delta_time);
         });
 
         sketch.activated = true;

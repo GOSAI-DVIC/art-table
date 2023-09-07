@@ -1,5 +1,6 @@
 from core.application import BaseApplication
 
+import time
 
 class Application(BaseApplication):
     """interpolated_show_hands"""
@@ -11,11 +12,10 @@ class Application(BaseApplication):
         self.requires["hand_sign"] = ["sign"]
         self.requires["interpolate"] = ["interpolated_data"]
         self.hand_pose_data = {}
-
         self.interpolation = {
             "name": "interpolated_show_hands",
-            "amount": 3,
-            "duration": 0.033,
+            "amount": 10,
+            "duration": 0.06,
             "points": [],
             "factor": 0.5,
             "depth": 2,
@@ -55,5 +55,6 @@ class Application(BaseApplication):
             and data["name"] == "interpolated_show_hands"
         ):
             self.hand_pose_data["hands_landmarks"] = data["points"]
+            self.hand_pose_data["emit_time"] = time.time()
             if "hands_sign" in self.hand_pose_data:
                 self.server.send_data(self.name, self.hand_pose_data)

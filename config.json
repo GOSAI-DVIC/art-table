@@ -2,12 +2,14 @@
     "name": "Art Table",
     "camera": {
         "type": "standard",
+        "flip": true,
+        "number": 0,
         "width": 640,
         "height": 480,
         "flip": true
     },
     "applications": {
-        "startup": ["show_hands"],
+        "startup": ["interpolated_show_hands"],
         "disabled": ["menu"]
     }
 }

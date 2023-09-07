@@ -6,7 +6,6 @@ export const show_hands = new p5((sketch) => {
     sketch.name = "show_hands";
     sketch.z_index = 5;
     sketch.activated = false;
-
     let hands_position = [];
     let hands_handedness = [];
     let hands_sign = [];
@@ -39,8 +38,9 @@ export const show_hands = new p5((sketch) => {
 
     sketch.show = () => {
         sketch.clear();
+        if(hands_position == undefined || hands_position.length == 0) return;
         for (let i = 0; i < hands_position.length; i++) {
-            display_hand(sketch, hands_position[i], hands_handedness[i], hands_sign[i], true, true);
+            display_hand(sketch, hands_position[i], hands_handedness[i], hands_sign[i], true, true, true);
         }
     };
 });

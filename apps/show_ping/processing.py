@@ -10,7 +10,8 @@ class Application(BaseApplication):
 
         @self.server.sio.on("ping")
         def ping(data):
-            self.server.sio.emit("pong", {
-                "ping": time.time()*1000 - data["ping"],
-                "pong": time.time()*1000,
+            now = time.time()*1000
+            self.server.send_data("pong", {
+                "ping": now - data["ping"],
+                "pong": now,
             })
