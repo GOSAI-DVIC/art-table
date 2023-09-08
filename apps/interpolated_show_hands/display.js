@@ -24,8 +24,7 @@ export const interpolated_show_hands = new p5((sketch) => {
             hands_position = data["hands_landmarks"];
             hands_handedness = data["hands_handedness"];
             hands_sign = data["hands_sign"];
-            let delta_time = performance.timeOrigin + performance.now() - 1000* data["emit_time"];
-            console.log(delta_time);
+            // let delta_time = performance.timeOrigin + performance.now() - 1000* data["emit_time"];
         });
 
         sketch.activated = true;

@@ -9,7 +9,7 @@
         "flip": true
     },
     "applications": {
-        "startup": ["interpolated_show_hands"],
+        "startup": ["parrot_synth"],
         "disabled": ["menu"]
     }
 }

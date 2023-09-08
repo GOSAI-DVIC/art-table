@@ -30,7 +30,7 @@ export const marbles = new p5((sketch) => {
             // console.log(data["hands_landmarks"].length)
         });
 
-        for (let i = 0; i < 2000; i++) {
+        for (let i = 0; i < 150; i++) {
             marbles.push({
                 x: Math.random() * sketch.width,
                 y: Math.random() * sketch.height,
