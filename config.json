@@ -2,14 +2,13 @@
     "name": "Art Table",
     "camera": {
         "type": "standard",
-        "flip": true,
         "number": 0,
         "width": 640,
         "height": 480,
         "flip": true
     },
     "applications": {
-        "startup": ["parrot_synth"],
+        "startup": ["life_as_a_boid"],
         "disabled": ["menu"]
     }
 }
