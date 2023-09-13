@@ -10,7 +10,7 @@ import { GLTFLoader } from "https://unpkg.com/three@0.156.1/examples/jsm/loaders
 class Scene {
     constructor() {
         this.name = "life_as_a_boid";
-        this.z_index = 0;
+        this.z_index = 10;
         this.activated = false;
         this.hands_position = [];
         this.hands_handedness = [];
@@ -38,9 +38,10 @@ class Scene {
         this.scene.add( new THREE.AmbientLight( 0xcccccc ) );
 
 
-        this.camera = new THREE.PerspectiveCamera(45, width / height, 1, 10000);
-        let z = height / 2 / Math.tan(Math.PI * 45 / 360);
-        this.camera.position.set(0, 0, z);
+        // this.camera = new THREE.PerspectiveCamera(45, width / height, 1, 10000);
+        // let z = height / 2 / Math.tan(Math.PI * 45 / 360);
+        this.camera = new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 10000 );
+        this.camera.position.set(0, 0, 100);
         this.scene.add(this.camera);
 
 
@@ -65,7 +66,7 @@ class Scene {
         this.composer.addPass( bloomPass );
         this.composer.addPass( outputPass );
 
-        this.boids = generateBoids(30, width, height, this.scene);
+        this.boids = generateBoids(60, width, height, this.scene);
 
         socket.on(this.name, (data) => {
             // console.log(data);

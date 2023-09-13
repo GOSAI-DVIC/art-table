@@ -49,7 +49,7 @@ class Boid {
         this.size = 30 - this.viewRadius / 10;
 
         this.sphereMaterial = new THREE.MeshBasicMaterial({
-            color: new THREE.Color(255, 150, 0)
+            color: new THREE.Color(255, 150 + 75*(100-this.viewRadius)/100, 0)
         });
         this.coneMaterial = new THREE.MeshBasicMaterial({
             color: new THREE.Color(255, 255, 255)
