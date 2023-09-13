@@ -42,7 +42,7 @@ export const interpolated_show_hands = new p5((sketch) => {
     sketch.show = () => {
         sketch.clear();
         for (let i = 0; i < hands_position.length; i++) {
-            display_hand(sketch, hands_position[i], hands_handedness[i], hands_sign[i], true, true);
+            display_hand(sketch, hands_position[i], hands_handedness[i], true, true);
         }
     };
 });

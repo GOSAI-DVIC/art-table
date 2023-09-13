@@ -36,7 +36,7 @@ let hand_junctions = [
     ]
 ]
 
-export function display_hand(sketch, hand_pose, handedness, sign, show_hands_points, show_hands_lines) {
+export function display_hand(sketch, hand_pose, handedness, show_hands_points, show_hands_lines) {
     if (hand_pose == undefined) return;
     if (hand_pose.length != 21) return;
     sketch.push();
