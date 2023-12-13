@@ -5,7 +5,14 @@
         "number": 0,
         "width": 640,
         "height": 480,
-        "flip": true
+        "flip": true,
+        "horizontal_flip": false,
+        "rotation": 0
+    },
+    "calibration": {
+        "spread": [0.5, 0.5],
+        "size": 256,
+        "offset": [0, 0]
     },
     "applications": {
         "startup": ["life_as_a_boid"],
