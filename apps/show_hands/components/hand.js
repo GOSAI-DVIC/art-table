@@ -41,26 +41,26 @@ export function display_hand(sketch, hand_pose, handedness, sign, show_hands_poi
     if (hand_pose.length != 21) return;
     sketch.push();
 
-    sketch.fill(200);
     // console.log(hand_pose);
     if (show_hands_points) {
         for (let i = 0; i < hand_pose.length; i++) {
             sketch.ellipse(
                 hand_pose[i][0] * sketch.width,
                 hand_pose[i][1] * sketch.height,
-                10
+                max(-100*hand_pose[i][2], 0)
             );
         }
     }
 
     sketch.stroke(255);
-    sketch.strokeWeight(4);
     if (
         show_hands_lines &&
         hand_pose.length == 21
     ) {
         hand_junctions.forEach(parts => {
             parts.forEach(pair => {
+                let meanZ = (hand_pose[pair[0]][2] + hand_pose[pair[1]][2]) / 2;
+                sketch.strokeWeight(2.0 + max(-100*meanZ, 0));
                 sketch.line(
                     hand_pose[pair[0]][0] * sketch.width,
                     hand_pose[pair[0]][1] * sketch.height,
