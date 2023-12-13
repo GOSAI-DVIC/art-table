@@ -1,11 +1,12 @@
 import { generateBoids } from "./components/boids.js";
-import * as THREE from "https://unpkg.com/three@0.156.1/build/three.module.js";
-import { EffectComposer } from "https://unpkg.com/three@0.156.1/examples/jsm/postprocessing/EffectComposer.js";
-import { UnrealBloomPass } from "https://unpkg.com/three@0.156.1/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { RenderPass } from "https://unpkg.com/three@0.156.1/examples/jsm/postprocessing/RenderPass.js";
-import { OutputPass } from "https://unpkg.com/three@0.156.1/examples/jsm/postprocessing/OutputPass.js";
-import { GLTFLoader } from "https://unpkg.com/three@0.156.1/examples/jsm/loaders/GLTFLoader";
-
+import { computeCentroidAndRadius } from "./components/hand.js";
+import * as THREE from "/gosai/libs/three/build/three.module.js";
+import { EffectComposer } from "/gosai/libs/three/examples/jsm/postprocessing/EffectComposer.js";
+import { UnrealBloomPass } from "/gosai/libs/three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { RenderPass } from "/gosai/libs/three/examples/jsm/postprocessing/RenderPass.js";
+import { OutputPass } from "/gosai/libs/three/examples/jsm/postprocessing/OutputPass.js";
+import { GLTFLoader } from "/gosai/libs/three/examples/jsm/loaders/GLTFLoader.js";
+import { project2DPoint } from "/gosai/libs/utils.js"
 
 class Scene {
     constructor() {
@@ -13,8 +14,10 @@ class Scene {
         this.z_index = 10;
         this.activated = false;
         this.hands_position = [];
-        this.hands_handedness = [];
+        // this.hands_handedness = [];
         this.boids = [];
+        this.frameSize = [];
+        this.cameraToDisplayMatrix = [];
     }
     set(width, height, socket) {
         this.canvasElement = document.createElement('canvas');
@@ -66,19 +69,45 @@ class Scene {
         this.composer.addPass( bloomPass );
         this.composer.addPass( outputPass );
 
-        this.boids = generateBoids(60, width, height, this.scene);
+        this.boids = generateBoids(100, width, height, this.scene);
 
-        socket.on(this.name, (data) => {
-            // console.log(data);
-            if (data == undefined || data.length == 0) return;
-            this.hands_position = data["hands_landmarks"];
-            this.hands_handedness = data["hands_handedness"];
+        socket.on(this.name, (payload) => {
+            let data = payload["data"];
+            let type = payload["type"];
+
+            if (type == "calibration") {
+                let coords = data["coords"];
+                console.log(coords);
+                if (coords == undefined) {
+                    setTimeout(() => this.requestCalibration(), 10000);
+                    return;
+                }
+                if (coords.length < 4) {
+                    setTimeout(() => this.requestCalibration(), 10000);
+                    return;
+                }
+                this.cameraToDisplayMatrix = data["camera_to_display_matrix"];
+            }
+            else if (type == "hand_pose") {
+                this.hands_position = data["hands_landmarks"];
+                this.frameSize = data["frame_size"];
+            }
         });
 
         this.activated = true;
+        this.socket = socket;
+        this.requestCalibration();
+        // this.debugSphere = new THREE.Mesh( new THREE.SphereGeometry( 100, 16, 8 ), new THREE.MeshBasicMaterial( { color: 0xff0000 } ) );
+        // this.scene.add( this.debugSphere );
     }
 
-    resume() {}
+    requestCalibration() {
+        this.socket.emit("application-life_as_a_boid-request_calibration");
+    }
+
+    resume() {
+        this.socket.emit("application-life_as_a_boid-get_calibration_data");
+    }
     pause() {}
     hide() {}
 
@@ -86,16 +115,66 @@ class Scene {
         this.renderer.setSize(windowWidth, windowHeight);
     }
 
+
     update() {
-        for (let boid of this.boids) {
-            boid.update(this.boids, this.hands_position, width, height);
+        let centroids = [];
+        let radii = [];
+        let hands_position = [];
+        if (this.cameraToDisplayMatrix.length) {
+            for (let hand_pose of this.hands_position) {
+                let hand = [];
+                for (let i = 0; i < hand_pose.length; i++) {
+                    let [x, y] = project2DPoint([hand_pose[i][0] * this.frameSize[0], hand_pose[i][1] * this.frameSize[1]], this.cameraToDisplayMatrix);
+                    hand.push([x, y]);
+                }
+                hands_position.push(hand);
+
+                let [centroid, radius] = computeCentroidAndRadius(hand, this.frameSize, this.cameraToDisplayMatrix);
+                centroids.push(centroid);
+                radii.push(radius);
+                // this.debugSphere.position.set(centroid.x - width/2, height/2 - centroid.y, 0);
+                // circle(centroid.x, centroid.y, radius);
+            }
+        } else {
+            for (let hand_pose of this.hands_position) {
+                let hand = [];
+                for (let i = 0; i < hand_pose.length; i++) {
+                    let [x, y] = [hand_pose[i][0] * width, hand_pose[i][1] * height];
+                    hand.push([x, y]);
+                }
+                hands_position.push(hand);
+
+                let [centroid, radius] = computeCentroidAndRadius(hand, this.frameSize, this.cameraToDisplayMatrix);
+                centroids.push(centroid);
+                radii.push(radius);
+                // this.debugSphere.position.set(centroid.x - width/2, height/2 - centroid.y, 0);
+                // circle(centroid.x, centroid.y, radius);
+            }
+        }
+
+        let distances = [];
+        let closerBoids = [];
+        for (let i = 0; i < this.boids.length; i++) {
+            distances.push([]);
+            closerBoids.push([]);
+        }
+        for (let i = 0; i < this.boids.length; i++) {
+            for (let j = i+1; j < this.boids.length; j++) {
+                let d = dist(this.boids[i].pos.x, this.boids[i].pos.y, this.boids[j].pos.x, this.boids[j].pos.y);
+                distances[i].push(d);
+                distances[j].push(d);
+                if (d < this.boids[i].viewRadius) {
+                    closerBoids[i].push(this.boids[j]);
+                }
+            }
+        }
+
+        for (let [i, boid] of this.boids.entries()) {
+            boid.update(this.boids, hands_position, width, height, centroids, radii, distances[i], closerBoids[i]);
         }
     }
 
     show() {
-
-        console.log(this.scene);
-
         this.composer.render();
     }
 

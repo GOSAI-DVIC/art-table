@@ -1,6 +1,6 @@
 // Import Three.js
-import * as THREE from "https://unpkg.com/three@0.156.1/build/three.module.js";
-import * as BufferGeometryUtils from "https://unpkg.com/three@0.156.1/examples/jsm/utils/BufferGeometryUtils.js";
+import * as THREE from "/gosai/libs/three/build/three.module.js";
+import * as BufferGeometryUtils from "/gosai/libs/three/examples/jsm/utils/BufferGeometryUtils.js";
 
 
 console.log("three.js version:", THREE.REVISION);
@@ -34,7 +34,7 @@ function distToSegmentSquared(p, v, w) {
 
 let separation = 0.02;
 let alignment = 0.1;
-let cohesion = 0.05;
+let cohesion = 0.07;
 let hand_avoidance = 0.5;
 let edge_avoidance = 0.5;
 
@@ -100,6 +100,7 @@ class Boid {
         // stroke(255, 0, 0);
         // strokeWeight(1);
         // line(this.pos.x, this.pos.y, this.pos.x + newAcc.x * 10, this.pos.y + newAcc.y * 10);
+        newAcc = newAcc.limit(1.5);
         this.acc.add(newAcc);
     }
 
@@ -115,6 +116,7 @@ class Boid {
         // stroke(0, 255, 0);
         // strokeWeight(1);
         // line(this.pos.x, this.pos.y, this.pos.x + newAcc.x * 10, this.pos.y + newAcc.y * 10);
+        newAcc = newAcc.limit(0.7);
         this.acc.add(newAcc);
     }
 
@@ -122,25 +124,27 @@ class Boid {
         let newAcc = createVector(0, 0);
         let center = createVector(0, 0);
         for (let other of boids) {
-            center.add(other.pos);
+            let diff = p5.Vector.sub(other.pos, this.pos);
+            center.add(diff.mult(other.viewRadius/200));
         }
 
         center.div(boids.length);
-        newAcc = p5.Vector.sub(center, this.pos);
+        newAcc = center;
 
 
         newAcc.mult(cohesion);
         // stroke(0, 0, 255);
         // strokeWeight(1);
         // line(this.pos.x, this.pos.y, this.pos.x + newAcc.x * 10, this.pos.y + newAcc.y * 10);
+        newAcc = newAcc.limit(1.2);
         this.acc.add(newAcc);
     }
 
     checkEdges(width, height) {
         // Steer away from edges
         let newAcc = createVector(0, 0);
-        let amp = 20;
-        let radius = this.viewRadius*2;
+        let amp = 10;
+        let radius = this.viewRadius*1.5;
 
         if (this.pos.x < radius) {
             newAcc.add(createVector(amp/sqrt(this.pos.x), 0));
@@ -158,7 +162,7 @@ class Boid {
             // stroke(255, 0, 255);
             // strokeWeight(1);
             // line(this.pos.x, this.pos.y, this.pos.x + newAcc.x * 10, this.pos.y + newAcc.y * 10);
-
+            newAcc = newAcc.limit(4);
             this.acc.add(newAcc);
         }
     }
@@ -166,55 +170,58 @@ class Boid {
     steerRandomly() {
         let newAcc = createVector(random(-1, 1), random(-1, 1));
         let steer = p5.Vector.sub(newAcc, this.vel);
-        steer.limit(0.1);
+        steer = steer.limit(0.1);
         this.acc.add(steer);
     }
 
-    steerAwayFromHand(hand) {
+    steerAwayFromHand(hand, centroid, radius) {
         let newAcc = createVector(0, 0);
-        let amp = 5;
+        let amp = 100;
 
         for (let i = 0; i < hand_outline.length - 1; i++) {
             let index = hand_outline[i];
             let next_index = hand_outline[i + 1];
             let v = {
-                x: hand[index][0] * width,
-                y: hand[index][1] * height
+                x: hand[index][0],
+                y: hand[index][1]
             };
 
             let w = {
-                x: hand[next_index][0] * width,
-                y: hand[next_index][1] * height
+                x: hand[next_index][0],
+                y: hand[next_index][1]
             };
 
             let [dist, closest_point] = distToSegment(this.pos, v, w);
 
             if (dist < 1.5*this.viewRadius) {
-                if (closest_point.x < this.pos.x) {
-                    newAcc.add(createVector(amp, 0));
-                } else if (closest_point.x > this.pos.x) {
-                    newAcc.add(createVector(-amp, 0));
-                }
+                let dir = createVector(this.pos.x - centroid.x, this.pos.y - centroid.y);
 
-                if (closest_point.y < this.pos.y) {
-                    newAcc.add(createVector(0, amp));
-                } else if (closest_point.y > this.pos.y) {
-                    newAcc.add(createVector(0, -amp));
-                }
+                // newAcc.add(normal);
+                this.pos.add(dir.limit(2));
+                dir.normalize();
+                dir.mult(amp/sqrt(dist));
+                newAcc.add(dir);
             }
         }
 
+        let dist = p5.Vector.dist(this.pos, centroid);
+        if (dist < radius) {
+            let diff = p5.Vector.sub(this.pos, centroid);
+            // diff.div(dist);
+            // newAcc.add(diff.mult(radius/dist));
+        }
+
         if (newAcc.x != 0 || newAcc.y != 0) {
-            // newAcc.limit(4);
+            newAcc.limit(20);
             this.acc.add(newAcc);
         }
     }
 
 
-    update(boids, hands, width, height) {
+    update(boids, hands, width, height, centroids, radii, distances, closerBoids) {
 
         this.steerRandomly();
-        let [closerBoids, distances] = this.getCloserBoids(boids);
+        // let [closerBoids, distances] = this.getCloserBoids(boids);
 
         if (closerBoids.length > 0) {
             this.checkSeparation(closerBoids, distances);
@@ -222,15 +229,17 @@ class Boid {
             this.checkCohesion(closerBoids);
         }
 
-        for (let hand of hands) {
-            this.steerAwayFromHand(hand);
+        for (let i = 0; i < hands.length; i++) {
+            if (centroids[i] == undefined) continue;
+            if (radii[i] == undefined) continue;
+            this.steerAwayFromHand(hands[i], centroids[i], radii[i]);
         }
 
         this.checkEdges(width, height);
 
         this.acc.mult(0.1);
+        this.vel.limit(4);
         this.vel.add(this.acc);
-        this.vel.limit(600/frameRate());
         this.pos.add(this.vel);
         if (this.pos.x < 0) this.pos.x = 0.1;
         if (this.pos.x > width) this.pos.x = width - 0.1;
@@ -238,6 +247,10 @@ class Boid {
         if (this.pos.y > height) this.pos.y = height - 0.1;
         this.acc.mult(0);
         this.vel.mult(1.01);
+
+        // Change color based on velocity
+        // let speed = this.vel.mag();
+        // this.sphereMaterial.color.setRGB(255, 150 + 75*(100-this.viewRadius)/100, 255*speed/this.vel.limit());
 
         this.mesh.position.set(this.pos.x - width/2, height/2 - this.pos.y, 0);
         this.mesh.rotation.z = atan2(-this.vel.y, this.vel.x) - PI/2;
