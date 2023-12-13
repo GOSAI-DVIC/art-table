@@ -2,9 +2,8 @@ import {
     display_hand
 } from "./components/hand.js";
 
-import {
-    project2DPoint, projectP5Context
-} from "/gosai/art_table/platform/src/libs/utils.js"
+import { project2DPoint, projectP5Context } from "/gosai/libs/utils.js"
+import config from "/gosai/home/config.json" assert { type: 'json' };
 
 export const calibrate = new p5((sketch) => {
     sketch.name = "calibrate";
@@ -24,7 +23,11 @@ export const calibrate = new p5((sketch) => {
     let arucoSize = 256;
 
     let arucoDisplayCoords = [];
+    let exiting = false;
+    let exitingCount = 0;
+    let exitingLimit = 20;
 
+    // console.log(config);
     // let coords = [[[131.0, 208.0], [212.0, 210.0], [209.0, 290.0], [127.0, 289.0]], [[410.0, 212.0], [491.0, 213.0], [492.0, 294.0], [410.0, 293.0]], [[412.0, 57.0], [490.0, 57.0], [488.0, 136.0], [410.0, 135.0]], [[137.0, 52.0], [214.0, 54.0], [213.0, 133.0], [134.0, 131.0]]];
     // let ids = [3, 2, 1, 0];
     // let cameraToDisplayMatrix = [[3.164422226104663, 0.15063990243153333, -129.99313316096243], [-0.06157208467942557, 3.2250505314237574, -40.12721208994409], [-2.633518546379473e-05, 9.20139740831018e-05, 1.0]];
@@ -34,6 +37,7 @@ export const calibrate = new p5((sketch) => {
     let cameraToDisplayMatrix = [];
     let displayToCameraMatrix = [];
     let calibrationInProgress = false;
+    let continuousCalibration = false;
 
     let handsPose = [];
     let newHandsPose = [];
@@ -46,32 +50,32 @@ export const calibrate = new p5((sketch) => {
     let latchedTranslate = false;
     let latchingTranslateCount = 0;
     let initialCoord = [];
-    let targetOffset = [0, 0];
-    let currentOffset = [0, 0];
+    let targetOffset = config["calibration"] != undefined ? config["calibration"]["offset"] != undefined ? config["calibration"]["offset"] : [0, 0] : [0, 0];
+    let currentOffset = targetOffset;
 
     let latchedScale = false;
     let latchingScaleCount = 0;
     let initialDistance = 0;
-    let targetScale = 1;
-    let currentScale = 1;
+    let targetScale = config["calibration"] != undefined ? config["calibration"]["scale"] != undefined ? config["calibration"]["scale"] : 1 : 1;
+    let currentScale = targetScale;
 
     let latchedRotate = false;
     let latchingRotateCount = 0;
-    let initialAngle = 0;
-    let targetAngle = 0;
-    let currentAngle = 0;
+    let initialAngle = config["calibration"] != undefined ? config["calibration"]["rotation"] != undefined ? config["calibration"]["rotation"] : 0 : 0;
+    let targetAngle = initialAngle;
+    let currentAngle = initialAngle;
 
     let latchedSize = false;
     let latchingSizeCount = 0;
-    let initialSize = arucoSize;
-    let targetSize = arucoSize;
-    let currentSize = arucoSize;
+    let initialSize = config["calibration"] != undefined ? config["calibration"]["size"] != undefined ? config["calibration"]["size"] : arucoSize : arucoSize;
+    let targetSize = initialSize;
+    let currentSize = initialSize;
 
-    let latchedPlacement = false;
-    let latchingPlacementCount = 0;
-    let initialPlacement = [];
-    let targetPlacement = [0.5, 0.5];
-    let currentPlacement = [0.5, 0.5];
+    let latchedSpread = false;
+    let latchingSpreadCount = 0;
+    let initialSpread = [];
+    let targetSpread = config["calibration"] != undefined ? config["calibration"]["spread"] != undefined ? config["calibration"]["spread"] : [0.5, 0.5] : [0.5, 0.5];
+    let currentSpread = targetSpread;
 
     let latchingTarget = 15;
     let latchingDecreaseSpeed = 2;
@@ -98,10 +102,24 @@ export const calibrate = new p5((sketch) => {
             if (type == "calibration") {
                 calibrationInProgress = false
                 coords = data["coords"];
-                ids = data["ids"];
-                if (data["camera_to_display_matrix"].length >= cameraToDisplayMatrix.length) {
+                ids = data["ids"]
+                let c2d = data["camera_to_display_matrix"];
+
+                // console.log(coords);
+                // console.log(ids);
+
+                if (coords == undefined) return;
+                if (ids == undefined) return;
+
+                if (c2d.length > 0) {
                     cameraToDisplayMatrix = data["camera_to_display_matrix"];
+                    sketch.socket.emit("core-app_manager-stop_application", {"application_name": sketch.name});
                     if (scenarioIndex == 0) scenarioIndex = 1;
+                } else {
+                    calibrationInProgress = true;
+                    setTimeout(() => {
+                        sketch.socket.emit("application-calibrate-calibrate_camera_display", arucoDisplayCoords);
+                    }, 300);
                 }
                 if (data["display_to_camera_matrix"].length >= displayToCameraMatrix.length) {
                     displayToCameraMatrix = data["display_to_camera_matrix"];
@@ -115,19 +133,12 @@ export const calibrate = new p5((sketch) => {
             }
         });
 
-        // setInterval(() => {
-        //     sketch.socket.emit("application-calibrate-calibrate_camera_display", arucoDisplayCoords);
-        // }
-        // , 100);
-
-        sketch.activated = true;
-    };
-
-    sketch.mousePressed = () => {
         calibrationInProgress = true;
         setTimeout(() => {
             sketch.socket.emit("application-calibrate-calibrate_camera_display", arucoDisplayCoords);
         }, 300);
+
+        sketch.activated = true;
     };
 
     sketch.updateCoords = () => {
@@ -137,17 +148,17 @@ export const calibrate = new p5((sketch) => {
             let x;
             let y;
             if (i == 0) {
-                x = sketch.width/2 - 0.5 * currentPlacement[0] * sketch.width;
-                y = sketch.height/2 - 0.5 * currentPlacement[1] * sketch.height;
+                x = sketch.width/2 - 0.5 * currentSpread[0] * sketch.width;
+                y = sketch.height/2 - 0.5 * currentSpread[1] * sketch.height;
             } else if (i == 1) {
-                x = sketch.width/2 + 0.5 * currentPlacement[0] * sketch.width;
-                y = sketch.height/2 - 0.5 * currentPlacement[1] * sketch.height;
+                x = sketch.width/2 + 0.5 * currentSpread[0] * sketch.width;
+                y = sketch.height/2 - 0.5 * currentSpread[1] * sketch.height;
             } else if (i == 2) {
-                x = sketch.width/2 + 0.5 * currentPlacement[0] * sketch.width;
-                y = sketch.height/2 + 0.5 * currentPlacement[1] * sketch.height;
+                x = sketch.width/2 + 0.5 * currentSpread[0] * sketch.width;
+                y = sketch.height/2 + 0.5 * currentSpread[1] * sketch.height;
             } else if (i == 3) {
-                x = sketch.width/2 - 0.5 * currentPlacement[0] * sketch.width;
-                y = sketch.height/2 + 0.5 * currentPlacement[1] * sketch.height;
+                x = sketch.width/2 - 0.5 * currentSpread[0] * sketch.width;
+                y = sketch.height/2 + 0.5 * currentSpread[1] * sketch.height;
             }
             arucoDisplayCoords[i].push([
                 x - currentSize / 2,
@@ -170,14 +181,13 @@ export const calibrate = new p5((sketch) => {
 
         // sketch.translate(sketch.width / 2, sketch.height / 2);
         // sketch.scale(currentScale);
-        // sketch.rotate(currentAngle);
         // sketch.translate(-sketch.width / 2, -sketch.height / 2);
         // sketch.translate(currentOffset[0], currentOffset[1]);
 
         // Equivalent to:
         let m = [
-            [currentScale * Math.cos(currentAngle), -currentScale * Math.sin(currentAngle), currentOffset[0]],
-            [currentScale * Math.sin(currentAngle), currentScale * Math.cos(currentAngle), currentOffset[1]],
+            [currentScale, 0, currentOffset[0]],
+            [0, currentScale, currentOffset[1]],
             [0, 0, 1]
         ]
 
@@ -202,11 +212,15 @@ export const calibrate = new p5((sketch) => {
         sketch.resizeCanvas(sketch.width, sketch.height);
     }
 
-    sketch.resume = () => {};
+    sketch.resume = () => {
+        exitingCount = 0;
+        sketch.socket.emit("application-calibrate-get_calibration_data");
+    };
 
     sketch.pause = () => {};
 
     sketch.update = () => {
+        // sketch.socket.emit("application-calibrate-calibrate_camera_display", arucoDisplayCoords);
         sketch.updateCoords();
 
         handsPose = newHandsPose;
@@ -229,11 +243,11 @@ export const calibrate = new p5((sketch) => {
         currentSize = currentSize * (1 - f) + targetSize * f;
         // console.log(currentSize);
 
-        currentPlacement = [
-            currentPlacement[0] * (1 - f) + targetPlacement[0] * f,
-            currentPlacement[1] * (1 - f) + targetPlacement[1] * f
+        currentSpread = [
+            currentSpread[0] * (1 - f) + targetSpread[0] * f,
+            currentSpread[1] * (1 - f) + targetSpread[1] * f
         ]
-        // console.log(currentPlacement);
+        // console.log(currentSpread);
 
         let numHands = handsPose.length;
         let numSigns = handsSign.length;
@@ -337,7 +351,7 @@ export const calibrate = new p5((sketch) => {
         }
 
         if (handsAngle != undefined) {
-            if(latchingRotateCount < latchingTarget) {
+            if(latchingRotateCount < latchingTarget) {10
                 latchingRotateCount++;
             }
 
@@ -403,53 +417,76 @@ export const calibrate = new p5((sketch) => {
             latchedSize = false;
         }
 
-        let indexPlacement;
+        let indexSpread;
         if (numHands == 2 && handsSign[0][0] == "TWO" && handsSign[1][0] == "TWO") {
-            indexPlacement = [
+            indexSpread = [
                 amp * (hand1[8][0] - hand2[8][0]),
                 amp * (hand1[8][1] - hand2[8][1])
             ];
 
             if(latchType != 5) {
-                latchedPlacement = false;
+                latchedSpread = false;
                 latchType = 5;
             }
         }
 
         amp = 0.05;
-        if (indexPlacement != undefined) {
-            if(latchingPlacementCount < latchingTarget) {
-                latchingPlacementCount++;
+        if (indexSpread != undefined) {
+            if(latchingSpreadCount < latchingTarget) {
+                latchingSpreadCount++;
             }
 
-            if (!latchedPlacement) {
-                if (latchingPlacementCount >= latchingTarget) {
-                    latchedPlacement = true;
-                    initialPlacement = indexPlacement;
+            if (!latchedSpread) {
+                if (latchingSpreadCount >= latchingTarget) {
+                    latchedSpread = true;
+                    initialSpread = indexSpread;
                 }
             }
 
-            if(latchedPlacement) {
-                targetPlacement = [targetPlacement[0] + indexPlacement[0] - initialPlacement[0], targetPlacement[1] + indexPlacement[1] - initialPlacement[1]];
-                initialPlacement = indexPlacement;
+            if(latchedSpread) {
+                targetSpread = [targetSpread[0] + indexSpread[0] - initialSpread[0], targetSpread[1] + indexSpread[1] - initialSpread[1]];
+                initialSpread = indexSpread;
             }
         } else {
-            latchingPlacementCount -= latchingDecreaseSpeed;
+            latchingSpreadCount -= latchingDecreaseSpeed;
         }
 
-        if (latchingPlacementCount < 0)  {
-            latchingPlacementCount = 0;
-            latchedPlacement = false;
+        if (latchingSpreadCount < 0)  {
+            latchingSpreadCount = 0;
+            latchedSpread = false;
         }
 
+        exiting = false;
+        handsPose.forEach((hand_pose, i) => {
+            let hand_sign = handsSign[i];
+            if (hand_pose == undefined) return;
+            if (hand_pose.length != 21) return;
+            if (cameraToDisplayMatrix.length == 0) return;
+
+            let [x, y] = project2DPoint([hand_pose[8][0] * frameSize[0], hand_pose[8][1] * frameSize[1]], cameraToDisplayMatrix);
+
+            if (hand_sign[0] == "INDEX" && sketch.dist(x, y, sketch.width/2, sketch.height/2) < 250/2) {
+                exiting = true;
+            }
+        });
+        if (exiting) {
+            exitingCount++;
+        } else {
+            exitingCount--;
+        }
+
+        if (exitingCount > exitingLimit) {
+            sketch.socket.emit("core-app_manager-stop_application", {"application_name": sketch.name});
+            exitingCount = 0;
+        }
     };
 
     sketch.show = () => {
         sketch.clear();
         sketch.push();
-        if (calibrationInProgress) {
-            sketch.background(255);
-        }
+        // if (calibrationInProgress || continuousCalibration) {
+            // sketch.background(0, 0, 125);
+        // }
 
         sketch.noFill();
 
@@ -473,14 +510,14 @@ export const calibrate = new p5((sketch) => {
         sketch.pop();
 
         sketch.push();
-        sketch.stroke(0, 255, 255, 50*latchingPlacementCount/latchingTarget);
+        sketch.stroke(0, 255, 255, 50*latchingSpreadCount/latchingTarget);
         sketch.strokeWeight(20);
         sketch.rect(0, 0, sketch.width, sketch.height);
         sketch.pop();
 
         sketch.push();
 
-        if(!calibrationInProgress && cameraToDisplayMatrix.length > 0) {
+        if((!calibrationInProgress || continuousCalibration) && cameraToDisplayMatrix.length > 0) {
             sketch.push();
 
             sketch.stroke(255, 0, 0);
@@ -514,26 +551,35 @@ export const calibrate = new p5((sketch) => {
             sketch.pop();
         }
 
-        if (cameraToDisplayMatrix.length > 0) {
-            sketch = projectP5Context(sketch, cameraToDisplayMatrix);
-        }
-
-        sketch.stroke(0, 255, 0, 60);
+            sketch.stroke(0, 255, 0, 60);
         sketch.strokeWeight(20);
         sketch.noFill();
-        if(!calibrationInProgress) {
+        if((!calibrationInProgress || continuousCalibration) && cameraToDisplayMatrix.length > 0) {
             for (let i = 0; i < coords.length; i++) {
                 // sketch.rect(coords[i][0][0]-10, coords[i][0][1]-10, coords[i][2][0] - coords[i][0][0]+20, coords[i][2][1] - coords[i][0][1]+20);
                 sketch.beginShape();
                 let offset = 20;
-                sketch.vertex(coords[i][0][0] - offset, coords[i][0][1] - offset);
-                sketch.vertex(coords[i][1][0] + offset, coords[i][1][1] - offset);
-                sketch.vertex(coords[i][2][0] + offset, coords[i][2][1] + offset);
-                sketch.vertex(coords[i][3][0] - offset, coords[i][3][1] + offset);
+                // sketch.vertex(coords[i][0][0] - offset, coords[i][0][1] - offset);
+                let [x,y] = project2DPoint([coords[i][0][0] - offset, coords[i][0][1] - offset], cameraToDisplayMatrix);
+                sketch.vertex(x, y);
+                // sketch.vertex(coords[i][1][0] + offset, coords[i][1][1] - offset);
+                [x,y] = project2DPoint([coords[i][1][0] + offset, coords[i][1][1] - offset], cameraToDisplayMatrix);
+                sketch.vertex(x, y);
+                // sketch.vertex(coords[i][2][0] + offset, coords[i][2][1] + offset);
+                [x,y] = project2DPoint([coords[i][2][0] + offset, coords[i][2][1] + offset], cameraToDisplayMatrix);
+                sketch.vertex(x, y);
+                // sketch.vertex(coords[i][3][0] - offset, coords[i][3][1] + offset);
+                [x,y] = project2DPoint([coords[i][3][0] - offset, coords[i][3][1] + offset], cameraToDisplayMatrix);
+                sketch.vertex(x, y);
                 sketch.endShape(sketch.CLOSE);
             }
         }
 
+
+        sketch.push();
+        if (cameraToDisplayMatrix.length > 0) {
+            sketch = projectP5Context(sketch, cameraToDisplayMatrix);
+        }
 
         sketch.stroke(0, 100, 200);
         sketch.noFill();
@@ -543,40 +589,46 @@ export const calibrate = new p5((sketch) => {
             let dir = [handsPose[i][8][0] - handsPose[i][6][0], handsPose[i][8][1] - handsPose[i][6][1]];
             dir = [frameSize[0]*dir[0], frameSize[1]*dir[1]];
             let index_point = [handsPose[i][8][0]*frameSize[0], handsPose[i][8][1]*frameSize[1]];
-            sketch.circle(index_point[0] + dir[0] / 4, index_point[1] + dir[1] / 4, 10);
-
+            sketch.circle(index_point[0] + dir[0] / 4, index_point[1] + dir[1] / 4, 3);
         }
 
+        sketch.pop();
         sketch.pop();
 
 
         // sketch.translate(sketch.width / 2, sketch.height / 2);
+        // // sketch.rotate(currentAngle);
         // sketch.scale(currentScale);
-        // sketch.rotate(currentAngle);
         // sketch.translate(-sketch.width / 2, -sketch.height / 2);
 
         // sketch.translate(currentOffset[0], currentOffset[1]);
+
+        sketch.noFill();
+        sketch.stroke(exiting ? 0 : 255, 255, exiting ? 0 : 255);
+        sketch.strokeWeight(2);
+        sketch.circle(sketch.width / 2, sketch.height / 2, 250);
+
 
         sketch.push();
         sketch.textSize(32);
         sketch.fill(255);
         sketch.textAlign(sketch.CENTER);
         for (let i = 0; i < handsSign.length; i++) {
-            sketch.text(handsSign[i][0], sketch.width / 2, sketch.height / 2 + 32*i);
+            // sketch.text(handsSign[i][0], sketch.width / 2, sketch.height / 2 + 32*i);
         }
-        sketch.text(currentPlacement[0], sketch.width / 2, sketch.height / 2 + 32*2);
+        // sketch.text(currentSpread[0], sketch.width / 2, sketch.height / 2 + 32*2);
         sketch.pop();
 
 
         sketch.stroke(255);
-        sketch.strokeWeight(calibrationInProgress ? 100 : 10);
+        sketch.strokeWeight(calibrationInProgress ? 100 : 50);
 
 
-        for (let i = 0; i < arucoFiles.length; i++) {
-            sketch.rect(arucoDisplayCoords[i][0][0], arucoDisplayCoords[i][0][1], currentSize, currentSize);
-        }
 
-        if(calibrationInProgress) {
+        if(calibrationInProgress || continuousCalibration) {
+            for (let i = 0; i < arucoFiles.length; i++) {
+                sketch.rect(arucoDisplayCoords[i][0][0], arucoDisplayCoords[i][0][1], currentSize, currentSize);
+            }
             for (let i = 0; i < arucoFiles.length; i++) {
                 sketch.image(arucoFiles[i], arucoDisplayCoords[i][0][0], arucoDisplayCoords[i][0][1], currentSize, currentSize);
             }

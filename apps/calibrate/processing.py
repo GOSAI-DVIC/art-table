@@ -17,12 +17,17 @@ class Application(BaseApplication):
             """Starts the calibration process for the camera to display matrix"""
             self.execute("calibration", "calibrate_camera_display", aruco_display_coords)
 
+        @self.server.sio.on("application-calibrate-get_calibration_data")
+        def get_calibration_data():
+            """Gets the calibration data"""
+            data = self.hal.get_driver_event_data("calibration", "calibration_data")
+            self.server.send_data(self.name, {"type": "calibration", "data": data})
+
     def listener(self, source, event, data):
         super().listener(source, event, data)
 
         if source == "calibration" and event == "calibration_data" and data is not None:
-            if len(data["coords"]) > 0:
-                self.server.send_data(self.name, {"type": "calibration", "data": data})
+            self.server.send_data(self.name, {"type": "calibration", "data": data})
 
         if source == "hand_pose" and event == "raw_data" and data is not None:
             self.hand_pose_data = data

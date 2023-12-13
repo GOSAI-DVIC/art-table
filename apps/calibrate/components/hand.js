@@ -42,7 +42,7 @@ export function display_hand(sketch, hand_pose, handedness, sign, show_hands_poi
 
     sketch.push();
 
-    sketch.fill(200, 200, 0);
+    sketch.fill(200, 200, 0, 20);
     sketch.strokeWeight(2);
     sketch.noStroke();
     // console.log(hand_pose);
@@ -56,7 +56,7 @@ export function display_hand(sketch, hand_pose, handedness, sign, show_hands_poi
         }
     }
 
-    sketch.stroke(255, 0, 0);
+    sketch.stroke(255, 0, 0, 20);
     sketch.strokeWeight(2);
     if (
         show_hands_lines &&
@@ -74,7 +74,7 @@ export function display_hand(sketch, hand_pose, handedness, sign, show_hands_poi
         })
     }
     // console.log(handedness);
-    sketch.fill(255, 0, 0);
+    sketch.fill(255, 0, 0, 20);
     sketch.noStroke();
     if (
         handedness != undefined && handedness.length > 0
